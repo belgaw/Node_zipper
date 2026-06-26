@@ -1,44 +1,47 @@
 const express = require('express');
-const multer = require('multer');
+const cors = require('cors');
+const busboy = require('busboy');
 const zlib = require('zlib');
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
 
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Requested-With');
-
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+app.use(cors());
 
 const MY_LOGIN = 'belgaw'; 
 
 app.get('/login', (req, res) => {
-    res.send(MY_LOGIN);
+    res.type('text/plain').send(MY_LOGIN);
 });
 
-app.post('/zipper', upload.any(), (req, res) => {
-    const file = req.files && req.files[0];
+app.post('/zipper', (req, res) => {
+    const contentType = req.headers['content-type'] || '';
+    let buffer = Buffer.alloc(0);
 
-    const bufferToCompress = file ? file.buffer : Buffer.from('');
+    if (contentType.includes('multipart/form-data')) {
+        const bb = busboy({ headers: req.headers });
 
-    res.setHeader('Content-Type', 'application/gzip');
-    res.setHeader('Content-Disposition', 'attachment; filename="result.gz"');
+        bb.on('file', (name, file) => {
+            file.on('data', (chunk) => {
+                buffer = Buffer.concat([buffer, chunk]);
+            });
+        });
 
-    zlib.gzip(bufferToCompress, (err, compressedData) => {
-        if (err) {
-            return res.status(500).send('Internal Server Error');
-        }
-        res.send(compressedData);
-    });
-});
+        bb.on('field', (name, val) => {
+            buffer = Buffer.from(val);
+        });
+
+        bb.on('close', () => {
+            zlib.gzip(buffer, (err, compressed) => {
+                if (err) return res.status(500).send('Compression error');
+                res.setHeader('Content-Type', 'application/gzip');
+                res.end(compressed);
+            });
+        });
+
+        req.pipe(bb);
+        return;
+    }
+
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Сервер готов`);
-});
+app.listen(PORT);

@@ -42,6 +42,8 @@ app.post('/zipper', (req, res) => {
         return;
     }
 
+    
+}); // <--- Вот эта скобка и закрывает app.post
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT);

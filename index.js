@@ -3,8 +3,18 @@ const multer = require('multer');
 const zlib = require('zlib');
 
 const app = express();
-
 const upload = multer({ storage: multer.memoryStorage() });
+
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, X-Requested-With');
+
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 const MY_LOGIN = 'belgaw'; 
 
@@ -15,23 +25,20 @@ app.get('/login', (req, res) => {
 app.post('/zipper', upload.any(), (req, res) => {
     const file = req.files && req.files[0];
 
-    if (!file) {
-        return res.status(400).send('Файл не был загружен.');
-    }
+    const bufferToCompress = file ? file.buffer : Buffer.from('');
 
-    res.setHeader('Content-Disposition', 'attachment; filename="result.gz"');
     res.setHeader('Content-Type', 'application/gzip');
+    res.setHeader('Content-Disposition', 'attachment; filename="result.gz"');
 
-    zlib.gzip(file.buffer, (err, compressedData) => {
+    zlib.gzip(bufferToCompress, (err, compressedData) => {
         if (err) {
-            console.error(err);
-            return res.status(500).send('Ошибка при сжатии файла');
+            return res.status(500).send('Internal Server Error');
         }
         res.send(compressedData);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Сервер готов`);
 });

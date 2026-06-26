@@ -12,15 +12,17 @@ app.get('/login', (req, res) => {
     res.send(MY_LOGIN);
 });
 
-app.post('/zipper', upload.single('upfile'), (req, res) => {
-    if (!req.file) {
+app.post('/zipper', upload.any(), (req, res) => {
+    const file = req.files && req.files[0];
+
+    if (!file) {
         return res.status(400).send('Файл не был загружен.');
     }
 
     res.setHeader('Content-Disposition', 'attachment; filename="result.gz"');
     res.setHeader('Content-Type', 'application/gzip');
 
-    zlib.gzip(req.file.buffer, (err, compressedData) => {
+    zlib.gzip(file.buffer, (err, compressedData) => {
         if (err) {
             console.error(err);
             return res.status(500).send('Ошибка при сжатии файла');
